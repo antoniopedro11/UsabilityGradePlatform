@@ -1,0 +1,37 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  image: node:latest
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - .next/
+
+test:
+  stage: test
+  image: node:latest
+  script:
+    - npm ci
+    - echo "Executando testes..."
+    # Descomente a linha abaixo quando tiver testes configurados
+    # - npm test
+
+deploy:
+  stage: deploy
+  image: node:latest
+  script:
+    - echo "Implantando a aplicação..."
+    # Adicione comandos de deploy conforme necessário
+  environment:
+    name: production
+  only:
+    - main 
