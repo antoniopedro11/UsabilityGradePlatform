@@ -17,32 +17,50 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 
+interface FormData {
+  name: string;
+  description: string;
+  type: string;
+  url: string;
+}
+
 export default function NewApplicationPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
+    type: "WEB",
     url: "",
-    type: "WEB"
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError("");
+    setLoading(true);
+    setError(null);
 
     try {
+      // Validação básica
+      if (!formData.name.trim()) {
+        throw new Error("O nome da aplicação é obrigatório");
+      }
+      
+      if (!formData.type.trim()) {
+        throw new Error("O tipo da aplicação é obrigatório");
+      }
+
+      // Enviar dados para a API
       const response = await fetch("/api/applications", {
         method: "POST",
         headers: {
@@ -52,16 +70,18 @@ export default function NewApplicationPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erro ao criar aplicação");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Erro ao criar aplicação");
       }
 
-      // Redirecionar para a lista de aplicações após sucesso
+      // Redirecionar para a lista de aplicações
       router.push("/applications");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao criar aplicação");
+      router.refresh(); // Atualizar a página para mostrar a nova aplicação
+    } catch (err: any) {
+      console.error("Erro ao criar aplicação:", err);
+      setError(err.message || "Ocorreu um erro ao criar a aplicação");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -80,6 +100,12 @@ export default function NewApplicationPage() {
         </p>
       </div>
 
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p>{error}</p>
+        </div>
+      )}
+
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>Detalhes da Aplicação</CardTitle>
@@ -92,7 +118,7 @@ export default function NewApplicationPage() {
                 id="name"
                 name="name"
                 value={formData.name}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 placeholder="Nome da sua aplicação"
                 required
               />
@@ -104,7 +130,7 @@ export default function NewApplicationPage() {
                 id="description"
                 name="description"
                 value={formData.description}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 placeholder="Descreva brevemente sua aplicação"
                 rows={4}
               />
@@ -116,7 +142,7 @@ export default function NewApplicationPage() {
                 id="url"
                 name="url"
                 value={formData.url}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 placeholder="https://sua-app.com"
                 type="url"
               />
@@ -126,7 +152,7 @@ export default function NewApplicationPage() {
               <Label htmlFor="type">Tipo de Aplicação</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value) => handleSelectChange("type", value)}
+                onValueChange={(value) => handleChange({ target: { name: "type", value } } as React.ChangeEvent<HTMLSelectElement> })}
               >
                 <SelectTrigger id="type">
                   <SelectValue placeholder="Selecione o tipo" />
@@ -135,20 +161,29 @@ export default function NewApplicationPage() {
                   <SelectItem value="WEB">Aplicação Web</SelectItem>
                   <SelectItem value="MOBILE">Aplicação Móvel</SelectItem>
                   <SelectItem value="DESKTOP">Aplicação Desktop</SelectItem>
+                  <SelectItem value="OUTRO">Outro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            {error && (
-              <div className="p-3 rounded-md bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm">
-                {error}
-              </div>
-            )}
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Enviando..." : "Enviar Aplicação"}
-            </Button>
+            <div className="flex items-center justify-between pt-4">
+              <Link
+                href="/applications"
+                className="text-indigo-600 hover:text-indigo-900"
+              >
+                Cancelar
+              </Link>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`bg-indigo-600 text-white px-4 py-2 rounded-md font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                  loading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
+              >
+                {loading ? "Salvando..." : "Criar Aplicação"}
+              </button>
+            </div>
           </CardFooter>
         </form>
       </Card>

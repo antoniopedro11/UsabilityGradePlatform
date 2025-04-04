@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -30,6 +30,8 @@ model User {
   templates      Template[]
   submissions    Application[]   @relation("UserSubmissions")
   reviewings     Application[]   @relation("ApplicationReviewer")
+  submittedApplications Application[] @relation("SubmittedApplications")
+  reviewedApplications  Application[] @relation("ReviewedApplications")
 }
 
 model Project {
@@ -210,20 +212,18 @@ model Template {
 }
 
 model Application {
-  id               String   @id @default(cuid())
-  name             String
-  description      String?
-  url              String?
-  type             String   @default("WEB")
-  status           String   @default("PENDING")
-  screenshots      String?  // URLs separados por vírgula
-  submitterId      String
-  assignedReviewer String?
-  feedback         String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  submitter        User     @relation("UserSubmissions", fields: [submitterId], references: [id], onDelete: Cascade)
-  reviewer         User?    @relation("ApplicationReviewer", fields: [assignedReviewer], references: [id])
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        String
+  status      String    @default("Pendente")
+  url         String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  submitterId String
+  reviewerId  String?
+  submitter   User      @relation("SubmittedApplications", fields: [submitterId], references: [id])
+  reviewer    User?     @relation("ReviewedApplications", fields: [reviewerId], references: [id])
 }
 
 model KnowledgeCategory {

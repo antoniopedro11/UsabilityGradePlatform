@@ -28,79 +28,97 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface Application {
+  id: string;
+  name: string;
+  description?: string | null;
+  type: string;
+  url?: string | null;
+  status: string;
+}
+
 export default function EditApplicationPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { id } = params;
   
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [formData, setFormData] = useState<Application>({
+    id: "",
+    name: "",
+    description: "",
+    type: "WEB",
+    url: "",
+    status: "Pendente",
+  });
+  
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Inicializar o formulário com o hook useForm e o resolver zod
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      url: "",
-      type: "WEB",
-      screenshots: "",
-    },
-  });
-
-  // Carregar os dados da aplicação ao montar o componente
   useEffect(() => {
-    const fetchApplicationData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
+    async function fetchApplication() {
       try {
+        setLoading(true);
         const response = await fetch(`/api/applications/${id}`);
         
         if (!response.ok) {
           if (response.status === 404) {
             throw new Error("Aplicação não encontrada");
-          } else if (response.status === 401) {
-            throw new Error("Você não tem permissão para editar esta aplicação");
-          } else {
-            throw new Error("Erro ao buscar detalhes da aplicação");
           }
+          throw new Error(`Erro ao carregar aplicação: ${response.status}`);
         }
         
         const data = await response.json();
-        const app = data.application;
-        
-        // Atualizar os valores do formulário
-        form.reset({
-          name: app.name,
-          description: app.description || "",
-          url: app.url || "",
-          type: app.type,
-          screenshots: app.screenshots || "",
+        setFormData({
+          id: data.application.id,
+          name: data.application.name,
+          description: data.application.description || "",
+          type: data.application.type,
+          url: data.application.url || "",
+          status: data.application.status,
         });
-      } catch (error) {
-        console.error("Erro ao buscar detalhes da aplicação:", error);
-        setError(error instanceof Error ? error.message : "Ocorreu um erro desconhecido");
+      } catch (err: any) {
+        console.error("Erro ao carregar aplicação:", err);
+        setError(err.message || "Ocorreu um erro ao carregar a aplicação");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
-    };
+    }
     
-    fetchApplicationData();
-  }, [id, form]);
-
-  // Função para lidar com o envio do formulário
-  const onSubmit = async (data: FormValues) => {
-    setIsSubmitting(true);
+    fetchApplication();
+  }, [id]);
+  
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
     setError(null);
     
     try {
+      // Validação básica
+      if (!formData.name.trim()) {
+        throw new Error("O nome da aplicação é obrigatório");
+      }
+      
+      if (!formData.type.trim()) {
+        throw new Error("O tipo da aplicação é obrigatório");
+      }
+      
+      // Enviar dados para a API
       const response = await fetch(`/api/applications/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formData),
       });
       
       if (!response.ok) {
@@ -108,199 +126,163 @@ export default function EditApplicationPage({ params }: { params: { id: string }
         throw new Error(errorData.error || "Erro ao atualizar aplicação");
       }
       
-      toast({
-        title: "Aplicação atualizada com sucesso!",
-        description: "As alterações foram salvas.",
-      });
-      
       // Redirecionar para a página de detalhes da aplicação
       router.push(`/applications/${id}`);
       router.refresh();
-    } catch (error) {
-      console.error("Erro ao atualizar aplicação:", error);
-      setError(error instanceof Error ? error.message : "Ocorreu um erro desconhecido");
-      
-      toast({
-        title: "Erro ao atualizar aplicação",
-        description: error instanceof Error ? error.message : "Ocorreu um erro desconhecido",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      console.error("Erro ao atualizar aplicação:", err);
+      setError(err.message || "Ocorreu um erro ao atualizar a aplicação");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
-
-  if (isLoading) {
+  
+  if (loading) {
     return (
-      <div className="container mx-auto py-8 flex justify-center items-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-xl">Carregando dados da aplicação...</p>
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
+          <div className="h-12 bg-gray-200 rounded mb-4"></div>
+          <div className="h-12 bg-gray-200 rounded mb-4"></div>
+          <div className="h-12 bg-gray-200 rounded mb-4"></div>
+          <div className="h-12 bg-gray-200 rounded mb-4"></div>
         </div>
       </div>
     );
   }
-
-  return (
-    <div className="container mx-auto py-8">
-      <div className="mb-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href={`/applications/${id}`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar para Detalhes
+  
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p className="font-bold">Erro</p>
+          <p>{error}</p>
+        </div>
+        <div className="mt-4">
+          <Link href="/applications" className="text-indigo-600 hover:text-indigo-900">
+            Voltar para Lista de Aplicações
           </Link>
-        </Button>
+        </div>
       </div>
-      
+    );
+  }
+  
+  return (
+    <div className="max-w-4xl mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Editar Aplicação</h1>
-        <p className="text-gray-500 mt-1">
-          Atualize os detalhes da sua aplicação
+        <h1 className="text-3xl font-bold mb-2">Editar Aplicação</h1>
+        <p className="text-gray-600">
+          Atualize os detalhes da aplicação abaixo.
         </p>
       </div>
       
       {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Erro</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p>{error}</p>
+        </div>
       )}
       
-      <Card className="max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle>Detalhes da Aplicação</CardTitle>
-          <CardDescription>
-            Edite os detalhes sobre a aplicação que você enviou para avaliação
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome da Aplicação</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Digite o nome da aplicação" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      O nome pelo qual sua aplicação é conhecida
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrição</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Descreva sua aplicação e o que você gostaria de avaliar" 
-                        className="min-h-[120px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Forneça uma descrição detalhada da aplicação e quais aspectos você gostaria que fossem avaliados
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL da Aplicação</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://sua-aplicacao.com" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Link para acessar sua aplicação (opcional para aplicações desktop)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de Aplicação</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo de aplicação" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="WEB">Web</SelectItem>
-                        <SelectItem value="MOBILE">Mobile</SelectItem>
-                        <SelectItem value="DESKTOP">Desktop</SelectItem>
-                        <SelectItem value="OTHER">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      O tipo principal da sua aplicação
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="screenshots"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Screenshots (URLs)</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="https://imagem1.com, https://imagem2.com" 
-                        className="min-h-[80px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      URLs de screenshots separadas por vírgula (opcional)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="flex justify-end space-x-4 pt-4">
-                <Button type="button" variant="outline" asChild>
-                  <Link href={`/applications/${id}`}>
-                    Cancelar
-                  </Link>
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    "Salvar Alterações"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            Nome da Aplicação *
+          </label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            required
+          />
+        </div>
+        
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            Descrição
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            value={formData.description || ""}
+            onChange={handleChange}
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+        
+        <div>
+          <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+            Tipo de Aplicação *
+          </label>
+          <select
+            id="type"
+            name="type"
+            value={formData.type}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            required
+          >
+            <option value="WEB">Aplicação Web</option>
+            <option value="MOBILE">Aplicação Mobile</option>
+            <option value="DESKTOP">Aplicação Desktop</option>
+            <option value="OUTRO">Outro</option>
+          </select>
+        </div>
+        
+        <div>
+          <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
+            URL da Aplicação
+          </label>
+          <input
+            type="url"
+            id="url"
+            name="url"
+            value={formData.url || ""}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="https://exemplo.com"
+          />
+        </div>
+        
+        <div>
+          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+            Status
+          </label>
+          <select
+            id="status"
+            name="status"
+            value={formData.status}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="Pendente">Pendente</option>
+            <option value="Em Análise">Em Análise</option>
+            <option value="Aprovado">Aprovado</option>
+            <option value="Rejeitado">Rejeitado</option>
+          </select>
+        </div>
+        
+        <div className="flex items-center justify-between pt-4">
+          <Link
+            href={`/applications/${id}`}
+            className="text-indigo-600 hover:text-indigo-900"
+          >
+            Cancelar
+          </Link>
+          <button
+            type="submit"
+            disabled={submitting}
+            className={`bg-indigo-600 text-white px-4 py-2 rounded-md font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+              submitting ? "opacity-70 cursor-not-allowed" : ""
+            }`}
+          >
+            {submitting ? "Salvando..." : "Salvar Alterações"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 } 

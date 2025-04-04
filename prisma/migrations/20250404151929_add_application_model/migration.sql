@@ -1,17 +1,21 @@
 -- CreateTable
 CREATE TABLE "Application" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
+    "type" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'Pendente',
     "url" TEXT,
-    "type" TEXT NOT NULL DEFAULT 'WEB',
-    "status" TEXT NOT NULL DEFAULT 'PENDING',
-    "screenshots" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "submitterId" TEXT NOT NULL,
-    "assignedReviewer" TEXT,
-    "feedback" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Application_submitterId_fkey" FOREIGN KEY ("submitterId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Application_assignedReviewer_fkey" FOREIGN KEY ("assignedReviewer") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    "reviewerId" TEXT,
+
+    CONSTRAINT "Application_pkey" PRIMARY KEY ("id")
 );
+
+-- AddForeignKey
+ALTER TABLE "Application" ADD CONSTRAINT "Application_submitterId_fkey" FOREIGN KEY ("submitterId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Application" ADD CONSTRAINT "Application_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
