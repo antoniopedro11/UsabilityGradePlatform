@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +11,72 @@ import { ThemeButton } from "@/components/theme-button";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isNewRegistration = searchParams.get("new") === "true";
+  
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("standard");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [cleanupComplete, setCleanupComplete] = useState(false);
+  
+  // Limpeza extremamente agressiva ao carregar a página
+  useEffect(() => {
+    const cleanupSession = () => {
+      try {
+        // Armazenar o valor do parâmetro new
+        if (isNewRegistration) {
+          sessionStorage.setItem("forced_new_registration", "true");
+        }
+        
+        // Limpar completamente o localStorage e sessionStorage
+        localStorage.clear();
+        
+        // Manter apenas nossa flag de registro forçado
+        const forcedRegistration = sessionStorage.getItem("forced_new_registration");
+        sessionStorage.clear();
+        if (forcedRegistration) {
+          sessionStorage.setItem("forced_new_registration", forcedRegistration);
+        }
+        
+        console.log("Storage limpo com sucesso");
+        
+        // Não verificar mais se existem dados de usuário após a limpeza
+        return true;
+        
+      } catch (error) {
+        console.error("Erro ao limpar dados:", error);
+        return false;
+      }
+    };
+    
+    const cleanupResult = cleanupSession();
+    setCleanupComplete(cleanupResult);
+    
+    // Desativar verificações de autenticação enquanto estiver na página de registro
+    const beforeUnloadHandler = () => {
+      sessionStorage.removeItem("forced_new_registration");
+    };
+    
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnloadHandler);
+    };
+  }, [isNewRegistration]);
+  
+  // Se a limpeza não foi completa, não renderizar o resto da página ainda
+  if (!cleanupComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 dark:border-white mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Preparando formulário de registro...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +91,7 @@ export default function RegisterPage() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ name, email, password, role })
       });
 
       const data = await response.json();
@@ -39,8 +100,15 @@ export default function RegisterPage() {
         throw new Error(data.message || "Falha no registro");
       }
 
-      // Redirecionar para o login com mensagem de sucesso
+      // Salvar dados do usuário no localStorage
+      if (data.user) {
+        console.log("Salvando dados do usuário:", data.user);
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+
+      // Redirecionar para a página de login com mensagem de sucesso
       router.push("/login?success=registration");
+      
     } catch (error: any) {
       console.error("Erro no registro:", error);
       setError(error.message || "Falha no registro. Tente novamente.");
@@ -136,6 +204,28 @@ export default function RegisterPage() {
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Mínimo 8 caracteres
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="role" className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Tipo de Conta
+                  </Label>
+                  <select
+                    id="role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white text-sm"
+                    required
+                  >
+                    <option value="standard">Usuário Padrão</option>
+                    <option value="expert">Especialista em Usabilidade</option>
+                    <option value="business">Empresarial</option>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {role === 'standard' && 'Para avaliação pessoal de websites e aplicações.'}
+                    {role === 'expert' && 'Para profissionais que oferecem avaliações de usabilidade.'}
+                    {role === 'business' && 'Para empresas que desejam avaliar seus produtos.'}
                   </p>
                 </div>
 

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "1",
+    "name": "Tutoriais",
+    "description": "Guias passo a passo para utilização da plataforma"
+  },
+  {
+    "id": "2",
+    "name": "Dicas",
+    "description": "Recomendações e sugestões úteis"
+  }
+]

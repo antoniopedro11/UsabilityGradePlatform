@@ -66,7 +66,7 @@ export function Logo({
           </svg>
         </div>
         <div className={`font-bold ${sizes[size].text} ${colors[variant].text}`}>
-          UsabilityGrade Platform
+          Plataforma de Usabilidade
         </div>
       </div>
     </Link>

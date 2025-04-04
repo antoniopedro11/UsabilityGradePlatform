@@ -13,6 +13,8 @@ import { ThemeButton } from "@/components/theme-button";
 const LOGIN_SESSION_KEY = "usability_login_attempt";
 
 export default function LoginPage() {
+  console.log("LoginPage inicializado"); // Depuração
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -23,69 +25,102 @@ export default function LoginPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const successParam = searchParams.get("success");
 
-  // Verificar parâmetros de sucesso
+  // Limpar SEMPRE todos os dados de sessão ao entrar na página de login
   useEffect(() => {
-    // Limpar dados antigos
+    console.log("Limpando completamente o storage na página de login");
+    // Limpar localStorage e sessionStorage para garantir um estado limpo
     localStorage.clear();
+    sessionStorage.clear();
     
+    // Limpar também o cookie de autenticação
+    document.cookie = "userData=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    console.log("Cookie de autenticação removido");
+    
+    // Verificar os diferentes parâmetros na URL
     if (successParam === "registration") {
       setShowSuccess(true);
       setMessage("Registro concluído com sucesso! Faça login para começar.");
+    } else if (searchParams.get("expired") === "true") {
+      setShowSuccess(false);
+      setMessage("Sua sessão expirou. Por favor, faça login novamente.");
     }
-  }, [successParam]);
+  }, [successParam, searchParams]);
 
   // Função direta para ir para o dashboard
-  const goToDashboard = (userData: any) => {
-    // Salvar usuário no localStorage
-    localStorage.setItem("user", JSON.stringify(userData));
+  const goToDashboard = () => {
+    // Verificar se existe um redirecionamento pendente
+    const redirectTo = searchParams.get("redirect");
     
-    // Redirecionar usando método HTML direto
-    document.location.href = "/dashboard";
+    if (redirectTo) {
+      console.log("Redirecionando para a rota original:", redirectTo);
+      router.push(redirectTo);
+    } else {
+      console.log("Redirecionando para o dashboard padrão");
+      router.push("/dashboard");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    setMessage("");
+
+    console.log("Tentando login com:", { email, passwordProvided: !!password });
 
     try {
-      console.log("Enviando requisição para /api/login-simple");
+      console.log("Enviando requisição para /api/auth/login");
       
-      const response = await fetch("/api/login-simple", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          email,
+          password,
+        }),
       });
 
       const data = await response.json();
+      console.log("Resposta recebida:", { 
+        status: response.status, 
+        ok: response.ok, 
+        hasUser: !!data.user,
+        data: data
+      });
 
       if (!response.ok) {
-        throw new Error(data.message || "Falha no login");
+        const errorMessage = data.error || "Erro ao fazer login";
+        console.error("Erro na resposta:", errorMessage, data);
+        throw new Error(errorMessage);
       }
 
-      if (data.user) {
-        // Preparar os dados do usuário
-        const userData = {
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email
-        };
-        
-        setMessage("Login bem-sucedido! Redirecionando...");
-        
-        // Atraso pequeno para permitir que a mensagem seja mostrada
-        setTimeout(() => {
-          goToDashboard(userData);
-        }, 500);
-      } else {
-        throw new Error("Dados de usuário incompletos");
-      }
-    } catch (error: any) {
-      console.error("Erro no login:", error);
-      setError(error.message || "Falha no login. Tente novamente.");
+      // Salvar dados do usuário no localStorage
+      const userData = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
+        lastLogin: new Date().toISOString(),
+        forceReauth: false,
+      };
+
+      console.log("Salvando dados do usuário:", userData);
+      localStorage.setItem("userData", JSON.stringify(userData));
+      
+      // Configurar cookie para autenticação (importante para o middleware)
+      document.cookie = `userData=${JSON.stringify(userData)}; path=/; max-age=86400; SameSite=Lax`;
+      console.log("Cookie de autenticação configurado");
+      
+      // Definir tempo de expiração da sessão (24 horas)
+      const expiryTime = new Date().getTime() + 24 * 60 * 60 * 1000;
+      sessionStorage.setItem("sessionExpiry", expiryTime.toString());
+  
+      console.log("Redirecionando para o dashboard");
+      goToDashboard();
+    } catch (error) {
+      console.error("Erro ao fazer login:", error);
+      setError(error instanceof Error ? error.message : "Erro desconhecido ao fazer login");
     } finally {
       setIsLoading(false);
     }
@@ -93,6 +128,21 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      {/* Mensagem de depuração */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        background: 'blue',
+        color: 'white',
+        padding: '10px',
+        zIndex: 9999,
+        fontFamily: 'monospace'
+      }}>
+        DEPURAÇÃO: Página de login carregada. Tente fazer login com admin@example.com / admin123
+      </div>
+      
       {/* Header */}
       <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -101,13 +151,8 @@ export default function LoginPage() {
               <Logo size="md" showTagline={false} />
             </div>
           </Link>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center">
             <ThemeButton />
-            <Link href="/register">
-              <Button variant="outline" size="sm" className="text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600">
-                Criar conta
-              </Button>
-            </Link>
           </div>
         </div>
       </header>
@@ -165,10 +210,7 @@ export default function LoginPage() {
                     <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-200">
                       Palavra-passe
                     </Label>
-                    <Link
-                      href="/forgot-password"
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                    >
+                    <Link href="/reset-password" className="text-xs text-green-600 dark:text-green-400 hover:underline">
                       Esqueceu a palavra-passe?
                     </Link>
                   </div>
@@ -198,43 +240,29 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-                <div className="flex items-center justify-center">
-                  <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">
-                    Não tem uma conta?
-                  </span>
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Não tem uma conta?{" "}
                   <Link
                     href="/register"
-                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                    className="text-green-600 dark:text-green-400 hover:underline"
                   >
-                    Registrar-se
+                    Registe-se
                   </Link>
-                </div>
+                </p>
               </div>
             </div>
           </div>
-          
-          <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-            <p>
-              Ao acessar a plataforma, você concorda com nossos{" "}
-              <Link
-                href="/terms"
-                className="text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Termos de Serviço
-              </Link>{" "}
-              e{" "}
-              <Link
-                href="/privacy"
-                className="text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Política de Privacidade
-              </Link>
-              .
-            </p>
-          </div>
         </div>
       </div>
+
+      <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800 py-4">
+        <div className="container mx-auto px-4">
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+            © {new Date().getFullYear()} Usability Grade Platform. Todos os direitos reservados.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 } 

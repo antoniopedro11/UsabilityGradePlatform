@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     // Validação básica dos campos
-    const { email, name, password } = body;
+    const { email, name, password, role = 'standard' } = body;
 
     if (!email || !name || !password) {
       return NextResponse.json(
@@ -34,7 +34,16 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("Usuário registado com sucesso (simulação):", { name, email });
+    // Validação do tipo de usuário
+    const validRoles = ['standard', 'expert', 'business'];
+    if (role && !validRoles.includes(role)) {
+      return NextResponse.json(
+        { message: "Tipo de usuário inválido. Escolha entre: standard, expert ou business." },
+        { status: 400 }
+      );
+    }
+
+    console.log("Usuário registado com sucesso (simulação):", { name, email, role });
 
     // Sempre retorna sucesso (simulação)
     return NextResponse.json(
@@ -44,6 +53,7 @@ export async function POST(request: Request) {
           id: "simulated-id-" + Date.now(),
           name,
           email,
+          role,
           createdAt: new Date(),
         }
       },

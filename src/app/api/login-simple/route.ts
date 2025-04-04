@@ -40,17 +40,26 @@ export async function POST(request: Request) {
     // Simulação de login bem-sucedido (em uma implementação real, verificaríamos credenciais no banco de dados)
     console.log("Login bem-sucedido para:", body.email);
     
+    // Determinar o tipo de usuário com base no e-mail (simulação)
+    let role = 'standard';
+    if (body.email.includes('expert') || body.email.includes('especialista')) {
+      role = 'expert';
+    } else if (body.email.includes('business') || body.email.includes('empresa')) {
+      role = 'business';
+    }
+    
     // Criar um objeto de usuário consistente
     const user = {
       id: "user_" + Math.random().toString(36).substring(2, 11),
       name: "Usuário " + body.email.split("@")[0],
       email: body.email,
+      role: role,
       createdAt: new Date().toISOString()
     };
     
     console.log("Retornando usuário:", user);
 
-    // Retornar resposta de sucesso com objeto de usuário
+    // Retornar resposta de sucesso com objeto de usuário e cabeçalhos apropriados
     return NextResponse.json(
       { 
         success: true, 
@@ -60,9 +69,11 @@ export async function POST(request: Request) {
       { 
         status: 200,
         headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
           "Pragma": "no-cache",
-          "Expires": "0"
+          "Expires": "0",
+          "Surrogate-Control": "no-store",
+          "X-Content-Type-Options": "nosniff"
         }
       }
     );
@@ -71,7 +82,14 @@ export async function POST(request: Request) {
     console.error("Erro ao processar login:", error);
     return NextResponse.json(
       { success: false, message: "Erro interno do servidor ao processar login" },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0"
+        }
+      }
     );
   }
 } 

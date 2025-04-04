@@ -1,13 +1,17 @@
-import { PrismaClient } from "@prisma/client";
+// Este arquivo cria e exporta uma única instância do Prisma Client
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+import { PrismaClient } from '@prisma/client'
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
+// Criar uma única instância do Prisma Client para toda a aplicação
+// https://www.prisma.io/docs/guides/performance-and-optimization/connection-management
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma; 
+// Prevenir múltiplas instâncias em desenvolvimento
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
+
+// Usar client existente ou criar um novo
+export const prisma = globalForPrisma.prisma || new PrismaClient()
+
+// Salvar referência no objeto global em ambiente de não-produção
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+export default prisma 
