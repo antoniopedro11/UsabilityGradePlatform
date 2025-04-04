@@ -1,9 +1,6 @@
 "use client";
 
-import { useState, ReactNode } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,52 +10,51 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { ForumCategory } from "@/types";
+import { toast } from "@/components/ui/use-toast";
 
-const categorySchema = z.object({
-  name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres").max(100, "O nome não pode ter mais de 100 caracteres"),
-  slug: z.string().min(3, "O slug deve ter pelo menos 3 caracteres").max(100, "O slug não pode ter mais de 100 caracteres").regex(/^[a-z0-9-]+$/, "O slug deve conter apenas letras minúsculas, números e hífens"),
-  description: z.string().min(10, "A descrição deve ter pelo menos 10 caracteres").max(500, "A descrição não pode ter mais de 500 caracteres"),
-});
-
-type CategoryFormValues = z.infer<typeof categorySchema>;
-
-interface CreateCategoryDialogProps {
-  children: ReactNode;
-  onCategoryCreated?: (category: ForumCategory) => void;
-}
-
-export function CreateCategoryDialog({
-  children,
-  onCategoryCreated,
-}: CreateCategoryDialogProps) {
+export function CreateCategoryDialog({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [description, setDescription] = useState("");
 
-  const form = useForm<CategoryFormValues>({
-    resolver: zodResolver(categorySchema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      description: "",
-    },
-  });
+  const resetForm = () => {
+    setName("");
+    setSlug("");
+    setDescription("");
+  };
 
-  const onSubmit = async (values: CategoryFormValues) => {
-    setIsSubmitting(true);
-    setError(null);
+  const generateSlug = (text: string) => {
+    return text
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w-]+/g, '')
+      .replace(/--+/g, '-');
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setName(newName);
+    
+    // Gerar slug automaticamente se o usuário não modificou o slug
+    if (!slug || slug === generateSlug(name)) {
+      setSlug(generateSlug(newName));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
     try {
       const response = await fetch("/api/forum/categories", {
@@ -66,101 +62,106 @@ export function CreateCategoryDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          name,
+          slug,
+          description,
+        }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Falha ao criar categoria");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Falha ao criar categoria");
       }
 
       const newCategory = await response.json();
-      form.reset();
-      setOpen(false);
       
-      if (onCategoryCreated) {
-        onCategoryCreated(newCategory);
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Erro ao criar categoria");
+      toast({
+        title: "Categoria criada",
+        description: `A categoria "${newCategory.name}" foi criada com sucesso.`,
+      });
+      
+      setOpen(false);
+      resetForm();
+      
+      // Se houver uma função de callback para atualizar a lista, chamar aqui
+      // onCategoryCreated?.();
+    } catch (err: any) {
+      console.error("Erro ao criar categoria:", err);
+      toast({
+        title: "Erro",
+        description: err.message || "Falha ao criar categoria",
+        variant: "destructive",
+      });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogTrigger asChild>
+        {children}
+      </DialogTrigger>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Criar Nova Categoria</DialogTitle>
           <DialogDescription>
-            Adicione uma nova categoria ao fórum de discussão.
+            Crie uma nova categoria para o fórum de discussão.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome da categoria" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="slug"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Slug</FormLabel>
-                  <FormControl>
-                    <Input placeholder="slug-da-categoria" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descrição</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Descrição da categoria"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {error && (
-              <div className="text-sm font-medium text-destructive">{error}</div>
-            )}
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Criando..." : "Criar Categoria"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={handleNameChange}
+                placeholder="Nome da categoria"
+                required
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="slug">Slug</Label>
+              <Input
+                id="slug"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="slug-da-categoria"
+                pattern="^[a-z0-9-]+$"
+                title="Apenas letras minúsculas, números e hífens"
+                required
+              />
+              <p className="text-xs text-gray-500">
+                O slug deve conter apenas letras minúsculas, números e hífens.
+              </p>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Descrição da categoria"
+                rows={3}
+                required
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Criando..." : "Criar Categoria"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

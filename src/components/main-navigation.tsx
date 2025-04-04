@@ -82,13 +82,6 @@ export function MainNavigation({ className }: { className?: string }) {
       active: pathname.startsWith("/knowledge"),
       public: true,
     },
-    {
-      name: "Fórum",
-      href: "/forum",
-      icon: <FaComments className="w-5 h-5" />,
-      active: pathname.startsWith("/forum"),
-      public: true,
-    },
   ];
 
   // Links de administração (apenas para admins)
@@ -160,7 +153,7 @@ export function MainNavigation({ className }: { className?: string }) {
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
               <span className="text-xl font-semibold text-gray-800 dark:text-white">
-                Usability Grade
+                Usability Grade Platform
               </span>
             </Link>
           </div>

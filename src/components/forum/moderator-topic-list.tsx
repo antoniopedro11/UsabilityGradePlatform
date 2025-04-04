@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { ForumTopic } from "@/types";
+import { toast } from "@/components/ui/use-toast";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 export function ModeratorTopicList() {
   const [topics, setTopics] = useState<ForumTopic[]>([]);
@@ -40,94 +42,116 @@ export function ModeratorTopicList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openAlert, setOpenAlert] = useState(false);
   const [topicToDelete, setTopicToDelete] = useState<string | null>(null);
+  const [actionTopic, setActionTopic] = useState<ForumTopic | null>(null);
 
-  // Simular a busca de tópicos para moderação
   useEffect(() => {
-    const fetchTopics = async () => {
-      try {
-        setLoading(true);
-        // Em produção, usar a API real
-        // const response = await fetch("/api/forum/topics?moderation=true");
-        // const data = await response.json();
-        
-        // Dados de exemplo
-        const exampleTopics: ForumTopic[] = [
-          {
-            id: "1",
-            title: "Dicas de usabilidade para interfaces mobile",
-            content: "Compartilhando algumas dicas que aprendi sobre usabilidade em interfaces mobile. O que vocês acham?",
-            createdAt: new Date(2023, 10, 10),
-            updatedAt: new Date(2023, 10, 10),
-            authorId: "user1",
-            author: {
-              id: "user1",
-              name: "João Silva",
-              email: "joao@example.com",
-            },
-            categoryId: "1",
-            category: {
-              id: "1",
-              name: "Usabilidade Mobile",
-            },
-            isPinned: true,
-            isClosed: false,
-            responseCount: 5,
-          },
-          {
-            id: "2",
-            title: "Acessibilidade em aplicações web",
-            content: "Quais são as melhores práticas de acessibilidade para aplicações web em 2023?",
-            createdAt: new Date(2023, 10, 12),
-            updatedAt: new Date(2023, 10, 15),
-            authorId: "user2",
-            author: {
-              id: "user2",
-              name: "Maria Oliveira",
-              email: "maria@example.com",
-            },
-            categoryId: "2",
-            category: {
-              id: "2",
-              name: "Acessibilidade",
-            },
-            isPinned: false,
-            isClosed: false,
-            responseCount: 3,
-          },
-          {
-            id: "3",
-            title: "Discussão sobre testes de usabilidade remotos",
-            content: "Como vocês têm realizado testes de usabilidade remotos durante a pandemia?",
-            createdAt: new Date(2023, 10, 5),
-            updatedAt: new Date(2023, 10, 8),
-            authorId: "user3",
-            author: {
-              id: "user3",
-              name: "Carlos Souza",
-              email: "carlos@example.com",
-            },
-            categoryId: "3",
-            category: {
-              id: "3",
-              name: "Métodos de Pesquisa",
-            },
-            isPinned: false,
-            isClosed: true,
-            responseCount: 12,
-          },
-        ];
-        
-        setTopics(exampleTopics);
-        setLoading(false);
-      } catch (err) {
-        console.error("Erro ao buscar tópicos:", err);
-        setError("Não foi possível carregar os tópicos. Tente novamente mais tarde.");
-        setLoading(false);
-      }
-    };
-
     fetchTopics();
   }, []);
+
+  const fetchTopics = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/forum/topics?for=moderation");
+      if (!response.ok) {
+        throw new Error("Falha ao buscar tópicos para moderação");
+      }
+      const data = await response.json();
+      setTopics(data);
+      setError(null);
+    } catch (err) {
+      console.error("Erro ao buscar tópicos:", err);
+      setError("Não foi possível carregar os tópicos. Tente novamente mais tarde.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (topicId: string) => {
+    try {
+      const response = await fetch(`/api/forum/topics/moderate?id=${topicId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "approved",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao aprovar tópico");
+      }
+
+      // Atualizar o estado localmente
+      setTopics(prevTopics => 
+        prevTopics.map(topic => 
+          topic.id === topicId ? { ...topic, status: "approved" } : topic
+        )
+      );
+      
+      toast({
+        title: "Tópico aprovado",
+        description: "O tópico foi aprovado com sucesso.",
+      });
+    } catch (err) {
+      console.error("Erro ao aprovar tópico:", err);
+      toast({
+        title: "Erro",
+        description: "Falha ao aprovar tópico. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReject = async (topicId: string) => {
+    try {
+      const response = await fetch(`/api/forum/topics/moderate?id=${topicId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "rejected",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao rejeitar tópico");
+      }
+
+      // Atualizar o estado localmente
+      setTopics(prevTopics => 
+        prevTopics.map(topic => 
+          topic.id === topicId ? { ...topic, status: "rejected" } : topic
+        )
+      );
+      
+      toast({
+        title: "Tópico rejeitado",
+        description: "O tópico foi rejeitado com sucesso.",
+      });
+    } catch (err) {
+      console.error("Erro ao rejeitar tópico:", err);
+      toast({
+        title: "Erro",
+        description: "Falha ao rejeitar tópico. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pendente</Badge>;
+      case "approved":
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Aprovado</Badge>;
+      case "rejected":
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejeitado</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
 
   // Atualizar a lista de tópicos
   const refreshTopics = async () => {
@@ -306,17 +330,21 @@ export function ModeratorTopicList() {
                   <TableCell>{topic.category?.name || "Sem categoria"}</TableCell>
                   <TableCell>{topic.author?.name || "Usuário desconhecido"}</TableCell>
                   <TableCell>
-                    {topic.isClosed ? (
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        <Lock className="h-3 w-3 mr-1" /> Fechado
+                    {topic.status === "pending" ? (
+                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        Pendente
+                      </div>
+                    ) : topic.status === "approved" ? (
+                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Aprovado
                       </div>
                     ) : (
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Aberto
+                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Rejeitado
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-center">{topic.responseCount || 0}</TableCell>
+                  <TableCell className="text-center">{topic._count.responses || 0}</TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {formatDate(topic.createdAt)}
                   </TableCell>

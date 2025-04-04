@@ -17,6 +17,9 @@ export default function ClientLayout({
                       pathname === "/register" || 
                       pathname.startsWith("/auth");
 
+  // Verificar se é página pública e deve mostrar o footer
+  const showFooter = !isPublicPage || (pathname === "/" || pathname === "/login" || pathname === "/register");
+
   return (
     <div className="flex min-h-screen">
       {!isPublicPage && <SidebarNavigation />}
@@ -24,13 +27,15 @@ export default function ClientLayout({
         <main className="flex-1">
           {children}
         </main>
-        <footer className="py-6 border-t border-gray-200 dark:border-gray-800">
-          <div className="container mx-auto px-4">
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              © {new Date().getFullYear()} Plataforma de Avaliação de Usabilidade. Todos os direitos reservados.
-            </p>
-          </div>
-        </footer>
+        {showFooter && (
+          <footer className="py-6 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-black">
+            <div className="container mx-auto px-4">
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                © {new Date().getFullYear()} UsabilityGrade Platform. Todos os direitos reservados.
+              </p>
+            </div>
+          </footer>
+        )}
       </div>
     </div>
   );

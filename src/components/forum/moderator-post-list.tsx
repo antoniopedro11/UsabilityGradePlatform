@@ -31,6 +31,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ForumPost } from "@/types";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function ModeratorPostList() {
   const [posts, setPosts] = useState<ForumPost[]>([]);
@@ -39,6 +52,8 @@ export function ModeratorPostList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openAlert, setOpenAlert] = useState(false);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [viewResponse, setViewResponse] = useState<ForumPost | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   // Simular a busca de posts para moderação
   useEffect(() => {
@@ -201,6 +216,81 @@ export function ModeratorPostList() {
            topicTitle.includes(query);
   });
 
+  const handleViewResponse = (post: ForumPost) => {
+    setViewResponse(post);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleApprove = async (postId: string) => {
+    try {
+      const response = await fetch(`/api/forum/posts/${postId}/approve`, {
+        method: "PUT",
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao aprovar post");
+      }
+
+      // Atualizar o estado localmente
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === postId ? { ...post, isApproved: true, isFlagged: false, flagReason: undefined } : post
+        )
+      );
+      
+      toast({
+        title: "Post aprovado",
+        description: "O post foi aprovado com sucesso.",
+      });
+    } catch (err) {
+      console.error("Erro ao aprovar post:", err);
+      toast({
+        title: "Erro",
+        description: "Falha ao aprovar post. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReject = async (postId: string) => {
+    try {
+      const response = await fetch(`/api/forum/posts/${postId}/reject`, {
+        method: "PUT",
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao rejeitar post");
+      }
+
+      // Atualizar o estado localmente
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === postId ? { ...post, isApproved: false, isFlagged: true, flagReason: "Rejeitado pelo moderador" } : post
+        )
+      );
+      
+      toast({
+        title: "Post rejeitado",
+        description: "O post foi rejeitado com sucesso.",
+      });
+    } catch (err) {
+      console.error("Erro ao rejeitar post:", err);
+      toast({
+        title: "Erro",
+        description: "Falha ao rejeitar post. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getStatusBadge = (status: boolean) => {
+    return status ? (
+      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Aprovado</Badge>
+    ) : (
+      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Pendente</Badge>
+    );
+  };
+
   if (error) {
     return (
       <div className="rounded-md bg-red-50 p-4 my-4 border border-red-200">
@@ -269,19 +359,7 @@ export function ModeratorPostList() {
                     {post.content}
                   </TableCell>
                   <TableCell>
-                    {post.isFlagged ? (
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Sinalizado
-                      </div>
-                    ) : post.isApproved ? (
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Aprovado
-                      </div>
-                    ) : (
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        Pendente
-                      </div>
-                    )}
+                    {getStatusBadge(post.isApproved)}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {formatDate(post.createdAt)}
@@ -296,12 +374,12 @@ export function ModeratorPostList() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => window.open(`/forum/topics/${post.topicId}?highlight=${post.id}`, "_blank")}
+                          onClick={() => handleViewResponse(post)}
                         >
                           Ver no contexto
                         </DropdownMenuItem>
                         {!post.isApproved && (
-                          <DropdownMenuItem onClick={() => approvePost(post.id)}>
+                          <DropdownMenuItem onClick={() => handleApprove(post.id)}>
                             Aprovar resposta
                           </DropdownMenuItem>
                         )}
@@ -341,6 +419,83 @@ export function ModeratorPostList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Dialog para visualizar a resposta completa */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalhes da Resposta</DialogTitle>
+            <DialogDescription>
+              Resposta em: <strong>{viewResponse?.topic?.title}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-4 space-y-4">
+            <div>
+              <h4 className="font-medium text-sm mb-1">Autor</h4>
+              <p>{viewResponse?.author?.name}</p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-sm mb-1">Data</h4>
+              <p>{viewResponse && formatDate(viewResponse.createdAt)}</p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-sm mb-1">Status</h4>
+              <p>{getStatusBadge(viewResponse?.isApproved)}</p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-sm mb-1">Conteúdo</h4>
+              <div className="rounded-md border p-4 whitespace-pre-wrap">
+                {viewResponse?.content}
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex justify-between items-center">
+            <div className="flex gap-2">
+              {viewResponse?.isApproved === false && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-green-600"
+                    onClick={() => {
+                      handleApprove(viewResponse.id);
+                      setIsViewDialogOpen(false);
+                    }}
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Aprovar
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-600"
+                    onClick={() => {
+                      handleReject(viewResponse.id);
+                      setIsViewDialogOpen(false);
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Rejeitar
+                  </Button>
+                </>
+              )}
+            </div>
+            
+            <Button 
+              variant="outline" 
+              onClick={() => setIsViewDialogOpen(false)}
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

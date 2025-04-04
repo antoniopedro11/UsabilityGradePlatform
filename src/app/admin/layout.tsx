@@ -31,16 +31,10 @@ export default function AdminLayout({
       active: pathname === "/admin/users",
     },
     {
-      name: "Fórum - Categorias",
-      href: "/admin/forum/categories",
+      name: "Fórum",
+      href: "/admin/forum",
       icon: <FaComments className="w-5 h-5" />,
-      active: pathname === "/admin/forum/categories",
-    },
-    {
-      name: "Fórum - Moderação",
-      href: "/admin/forum/moderation",
-      icon: <FaComments className="w-5 h-5" />,
-      active: pathname === "/admin/forum/moderation",
+      active: pathname.startsWith("/admin/forum"),
     },
   ];
 

@@ -120,13 +120,6 @@ export function SidebarNavigation() {
   // Links de navegação principal
   const mainNavItems: NavItem[] = [
     {
-      name: "Início",
-      href: "/",
-      icon: <Home className="w-5 h-5" />,
-      active: pathname === "/",
-      public: true,
-    },
-    {
       name: "Dashboard",
       href: "/dashboard",
       icon: <Home className="w-5 h-5" />,
@@ -189,19 +182,19 @@ export function SidebarNavigation() {
       name: "Utilizadores",
       href: "/admin/users",
       icon: <Users className="w-5 h-5" />,
-      active: pathname.startsWith("/admin/users"),
+      active: pathname ==="/admin/users",
     },
     {
       name: "Fórum - Categorias",
       href: "/admin/forum/categories",
       icon: <MessageSquare className="w-5 h-5" />,
-      active: pathname === "/admin/forum/categories",
+      active: pathname.startsWith("/admin/forum/categories"),
     },
     {
       name: "Fórum - Moderação",
       href: "/admin/forum/moderation",
       icon: <MessageSquare className="w-5 h-5" />,
-      active: pathname === "/admin/forum/moderation",
+      active: pathname.startsWith("/admin/forum/moderation"),
     },
   ] : [];
 
@@ -290,7 +283,7 @@ export function SidebarNavigation() {
         <div className="flex items-center">
           {showLabels ? (
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Plataforma de Avaliação de Usabilidade
+              UsabilityGrade Platform 
             </h2>
           ) : (
             <span className="text-xl font-bold">UG</span>

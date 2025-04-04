@@ -111,7 +111,7 @@ export default function LoginPage() {
       localStorage.setItem("userData", JSON.stringify(userData));
       
       // Configurar cookie para autenticação (importante para o middleware)
-      document.cookie = `userData=${JSON.stringify(userData)}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `userData=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=86400; SameSite=Lax`;
       console.log("Cookie de autenticação configurado");
       
       // Definir tempo de expiração da sessão (24 horas)
@@ -136,14 +136,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col">
       {/* Mensagem de depuração */}
       <div style={{
         position: 'fixed',
         top: 0,
         left: 0,
         width: '100%',
-        background: 'blue',
+        background: 'black',
         color: 'white',
         padding: '10px',
         zIndex: 9999,
@@ -153,7 +153,7 @@ export default function LoginPage() {
       </div>
       
       {/* Header */}
-      <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800">
+      <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/">
             <div className="flex items-center">
@@ -168,8 +168,8 @@ export default function LoginPage() {
 
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
-          <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-800 dark:to-indigo-900 px-6 py-8">
+          <div className="bg-white dark:bg-gray-900 shadow-lg rounded-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-black to-gray-900 dark:from-black dark:to-gray-800 px-6 py-8">
               <div className="lg:p-8">
                 <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
                   <div className="flex flex-col items-center space-y-2 text-center">
@@ -177,7 +177,7 @@ export default function LoginPage() {
                     <h1 className="text-2xl font-semibold tracking-tight text-white">
                       Bem-vindo novamente
                     </h1>
-                    <p className="text-sm text-blue-100">
+                    <p className="text-sm text-gray-200">
                       Insira os seus dados para aceder à sua conta
                     </p>
                   </div>
@@ -193,7 +193,7 @@ export default function LoginPage() {
               )}
 
               {message && !showSuccess && (
-                <div className="mb-4 p-3 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm">
+                <div className="mb-4 p-3 rounded-md bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-sm">
                   {message}
                 </div>
               )}
@@ -219,7 +219,7 @@ export default function LoginPage() {
                     <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-200">
                       Palavra-passe
                     </Label>
-                    <Link href="/reset-password" className="text-xs text-green-600 dark:text-green-400 hover:underline">
+                    <Link href="/reset-password" className="text-xs text-orange-600 dark:text-orange-400 hover:underline">
                       Esqueceu a palavra-passe?
                     </Link>
                   </div>
@@ -242,40 +242,23 @@ export default function LoginPage() {
 
                 <Button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                   disabled={isLoading}
                 >
                   {isLoading ? "A entrar..." : "Entrar"}
                 </Button>
               </form>
 
-              <div className="mt-6 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Não tem uma conta?{" "}
-                  <Link
-                    href="/register"
-                    className="text-green-600 dark:text-green-400 hover:underline"
-                  >
-                    Registe-se
-                  </Link>
-                </p>
+              <div className="mt-6 text-center text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Não tem uma conta?</span>{" "}
+                <Link href="/register" className="text-orange-600 dark:text-orange-400 hover:underline">
+                  Registar
+                </Link>
               </div>
-
-              <p className="text-center text-green-600 font-bold mt-4">
-                DEPURAÇÃO: Utilize admin@example.com / admin123
-              </p>
             </div>
           </div>
         </div>
       </div>
-
-      <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-800 py-4">
-        <div className="container mx-auto px-4">
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-            © {new Date().getFullYear()} Usability Grade Platform. Todos os direitos reservados.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 } 

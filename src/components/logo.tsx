@@ -42,7 +42,7 @@ export function Logo({
     },
     white: {
       text: "text-white",
-      tagline: "text-blue-100",
+      tagline: "text-orange-200",
     },
   };
 
@@ -57,7 +57,7 @@ export function Logo({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={`${variant === "default" ? "text-blue-600 dark:text-blue-400" : "text-white"}`}
+            className={`${variant === "default" ? "text-orange-500 dark:text-orange-400" : "text-orange-500"}`}
           >
             <circle cx="12" cy="12" r="10" />
             <path d="M8 9.05v-.1" />
@@ -66,9 +66,14 @@ export function Logo({
           </svg>
         </div>
         <div className={`font-bold ${sizes[size].text} ${colors[variant].text}`}>
-          Plataforma de Usabilidade
+          UsabilityGrade Platform
         </div>
       </div>
+      {showTagline && (
+        <div className={`${sizes[size].tagline} ${colors[variant].tagline} mt-1`}>
+          Plataforma de Avaliação de Usabilidade
+        </div>
+      )}
     </Link>
   );
 } 

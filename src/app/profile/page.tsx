@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -13,12 +12,13 @@ import { ThemeButton } from "@/components/theme-button";
 import { ArrowLeft, User, Lock, Mail, Building, Briefcase, Globe, FileText } from "lucide-react";
 
 export default function ProfilePage() {
-  const { data: session, update } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -29,18 +29,56 @@ export default function ProfilePage() {
     website: "",
   });
 
+  // Buscar o usuário ao carregar a página
   useEffect(() => {
-    if (!session) return;
+    async function fetchUserData() {
+      try {
+        // Tentamos buscar os dados do usuário do localStorage
+        const storedUser = localStorage.getItem('userData');
+        
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          setFormData({
+            name: userData.name || "",
+            email: userData.email || "",
+            bio: userData.bio || "",
+            organization: userData.organization || "",
+            jobTitle: userData.jobTitle || "",
+            website: userData.website || "",
+          });
+        } else {
+          // Se não estiver no localStorage, buscar da API
+          const response = await fetch('/api/auth/me');
+          
+          if (!response.ok) {
+            throw new Error('Não autenticado');
+          }
+          
+          const userData = await response.json();
+          setUser(userData);
+          setFormData({
+            name: userData.name || "",
+            email: userData.email || "",
+            bio: userData.bio || "",
+            organization: userData.organization || "",
+            jobTitle: userData.jobTitle || "",
+            website: userData.website || "",
+          });
+          
+          // Armazenar no localStorage para uso futuro
+          localStorage.setItem('userData', JSON.stringify(userData));
+        }
+      } catch (err) {
+        console.error('Erro ao buscar usuário:', err);
+        router.push('/login');
+      } finally {
+        setLoading(false);
+      }
+    }
     
-    setFormData({
-      name: session.user?.name || "",
-      email: session.user?.email || "",
-      bio: session.user?.bio || "",
-      organization: session.user?.organization || "",
-      jobTitle: session.user?.jobTitle || "",
-      website: session.user?.website || "",
-    });
-  }, [session]);
+    fetchUserData();
+  }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -58,14 +96,20 @@ export default function ProfilePage() {
       // Por enquanto só vamos simular uma atualização bem-sucedida
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Atualizar a sessão local (simulação)
-      await update({
-        ...session,
-        user: {
-          ...session?.user,
-          name: formData.name,
-        }
-      });
+      // Atualizar os dados do usuário localmente
+      const updatedUser = {
+        ...user,
+        name: formData.name,
+        bio: formData.bio,
+        organization: formData.organization,
+        jobTitle: formData.jobTitle,
+        website: formData.website
+      };
+      
+      setUser(updatedUser);
+      
+      // Atualizar no localStorage
+      localStorage.setItem('userData', JSON.stringify(updatedUser));
       
       setMessage("Perfil atualizado com sucesso!");
       setIsEditing(false);
@@ -76,15 +120,12 @@ export default function ProfilePage() {
     }
   };
 
-  // Redirecionar se não estiver autenticado
-  useEffect(() => {
-    if (!session && session !== undefined) {
-      router.push("/login");
-    }
-  }, [session, router]);
-
-  if (!session) {
+  if (loading) {
     return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+  }
+
+  if (!user) {
+    return <div className="flex items-center justify-center h-screen">Redirecionando para login...</div>;
   }
 
   return (
@@ -93,7 +134,7 @@ export default function ProfilePage() {
       <header className="sticky top-0 z-10 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center">
-            <Link href="/dashboard" className="mr-4 flex items-center text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
+            <Link href="/dashboard" className="mr-4 flex items-center text-gray-600 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400">
               <ArrowLeft className="h-5 w-5 mr-1" />
               <span className="hidden sm:inline">Voltar</span>
             </Link>
@@ -117,14 +158,14 @@ export default function ProfilePage() {
         <div className="grid gap-6">
           {/* Card do perfil */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-800 dark:to-indigo-900 p-4 sm:p-6">
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-700 dark:to-orange-800 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <div className="h-20 w-20 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center text-blue-600 dark:text-blue-400 text-3xl font-bold border-4 border-white dark:border-gray-700">
-                  {session?.user?.name?.charAt(0) || "U"}
+                <div className="h-20 w-20 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center text-orange-600 dark:text-orange-400 text-3xl font-bold border-4 border-white dark:border-gray-700">
+                  {user?.name?.charAt(0) || "U"}
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{session?.user?.name}</h2>
-                  <p className="text-blue-100">{session?.user?.email}</p>
+                  <h2 className="text-xl font-bold text-white">{user?.name}</h2>
+                  <p className="text-orange-100">{user?.email}</p>
                 </div>
               </div>
             </div>
@@ -308,13 +349,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 py-4 mt-8">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          <p>&copy; {new Date().getFullYear()} UsabilityGrade Platform. Todos os direitos reservados.</p>
-        </div>
-      </footer>
     </div>
   );
 } 

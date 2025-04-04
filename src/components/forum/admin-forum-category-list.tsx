@@ -27,9 +27,21 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { ChevronDown, Edit, Trash2, Eye } from "lucide-react";
+import { ChevronDown, Edit, Trash2, Eye, AlertCircle } from "lucide-react";
 import { ForumCategory } from "@/types";
 import { EditCategoryDialog } from "./edit-category-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export function AdminForumCategoryList() {
   const [categories, setCategories] = useState<ForumCategory[]>([]);
@@ -39,6 +51,10 @@ export function AdminForumCategoryList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editCategory, setEditCategory] = useState<ForumCategory | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formSlug, setFormSlug] = useState("");
+  const [formDescription, setFormDescription] = useState("");
   const { toast } = useToast();
 
   const fetchCategories = async () => {
@@ -62,6 +78,14 @@ export function AdminForumCategoryList() {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    if (editCategory) {
+      setFormName(editCategory.name);
+      setFormSlug(editCategory.slug);
+      setFormDescription(editCategory.description);
+    }
+  }, [editCategory]);
 
   const handleDelete = (category: ForumCategory) => {
     setCategoryToDelete(category);
@@ -102,23 +126,85 @@ export function AdminForumCategoryList() {
     }
   };
 
-  const handleEdit = (category: ForumCategory) => {
+  const handleEditClick = (category: ForumCategory) => {
     setEditCategory(category);
+    setIsEditDialogOpen(true);
   };
 
-  const handleCategoryUpdated = (updatedCategory: ForumCategory) => {
-    setCategories(
-      categories.map((c) => (c.id === updatedCategory.id ? updatedCategory : c))
-    );
-    setEditCategory(null);
-    toast({
-      title: "Sucesso",
-      description: "Categoria atualizada com sucesso",
-    });
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editCategory) return;
+
+    try {
+      const response = await fetch(`/api/forum/categories?id=${editCategory.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formName,
+          slug: formSlug,
+          description: formDescription,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Falha ao atualizar categoria");
+      }
+
+      const updatedCategory = await response.json();
+      
+      // Atualizar a lista de categorias
+      setCategories(prevCategories => 
+        prevCategories.map(cat => 
+          cat.id === updatedCategory.id ? updatedCategory : cat
+        )
+      );
+      
+      setIsEditDialogOpen(false);
+      toast({
+        title: "Categoria atualizada",
+        description: `A categoria "${updatedCategory.name}" foi atualizada com sucesso.`,
+      });
+    } catch (err: any) {
+      console.error("Erro ao atualizar categoria:", err);
+      toast({
+        title: "Erro",
+        description: err.message || "Falha ao atualizar categoria",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleNewCategoryAdded = () => {
-    fetchCategories();
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      const response = await fetch(`/api/forum/categories?id=${categoryId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Falha ao excluir categoria");
+      }
+
+      // Remover categoria da lista
+      setCategories(prevCategories => 
+        prevCategories.filter(cat => cat.id !== categoryId)
+      );
+      
+      toast({
+        title: "Categoria excluída",
+        description: "A categoria foi excluída com sucesso.",
+      });
+    } catch (err: any) {
+      console.error("Erro ao excluir categoria:", err);
+      toast({
+        title: "Erro",
+        description: err.message || "Falha ao excluir categoria",
+        variant: "destructive",
+      });
+    }
   };
 
   // Função para formatar a data
@@ -128,14 +214,25 @@ export function AdminForumCategoryList() {
   };
 
   if (loading) {
-    return <div className="text-center py-10">Carregando categorias...</div>;
+    return (
+      <div className="text-center py-10">
+        <p className="text-gray-500 dark:text-gray-400">Carregando categorias...</p>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="text-center py-10 space-y-4">
+      <div className="text-center py-10">
+        <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
         <p className="text-red-500">{error}</p>
-        <Button onClick={fetchCategories}>Tentar Novamente</Button>
+        <Button 
+          onClick={fetchCategories} 
+          variant="outline" 
+          className="mt-4"
+        >
+          Tentar novamente
+        </Button>
       </div>
     );
   }
@@ -189,7 +286,7 @@ export function AdminForumCategoryList() {
                         <span>Ver Tópicos</span>
                       </a>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleEdit(category)}>
+                    <DropdownMenuItem onClick={() => handleEditClick(category)}>
                       <Edit className="mr-2 h-4 w-4" />
                       <span>Editar</span>
                     </DropdownMenuItem>
@@ -209,12 +306,66 @@ export function AdminForumCategoryList() {
       </Table>
 
       {editCategory && (
-        <EditCategoryDialog
-          category={editCategory}
-          open={!!editCategory}
-          onOpenChange={(open) => !open && setEditCategory(null)}
-          onCategoryUpdated={handleCategoryUpdated}
-        />
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Categoria</DialogTitle>
+              <DialogDescription>
+                Faça alterações na categoria selecionada.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleEditSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Nome</Label>
+                  <Input
+                    id="name"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Nome da categoria"
+                    required
+                  />
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="slug">Slug</Label>
+                  <Input
+                    id="slug"
+                    value={formSlug}
+                    onChange={(e) => setFormSlug(e.target.value)}
+                    placeholder="slug-da-categoria"
+                    pattern="^[a-z0-9-]+$"
+                    title="Apenas letras minúsculas, números e hífens"
+                    required
+                  />
+                  <p className="text-xs text-gray-500">
+                    O slug deve conter apenas letras minúsculas, números e hífens.
+                  </p>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="description">Descrição</Label>
+                  <Textarea
+                    id="description"
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    placeholder="Descrição da categoria"
+                    rows={3}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar alterações</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -40,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, Eye, Flag, MessageSquare, Shield, Trash2, UserX } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
 // Tipos de dados mockados
 type ReportReason = 
@@ -138,341 +139,331 @@ function getReasonColor(reason: ReportReason): string {
 
 export function ReportedContentList() {
   const { toast } = useToast();
-  const [reportedItems, setReportedItems] = useState<ReportedContent[]>(mockReportedContent);
-  const [selectedItem, setSelectedItem] = useState<ReportedContent | null>(null);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [actionDialogOpen, setActionDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [moderationAction, setModerationAction] = useState<string>("dismiss");
-  const [moderationNote, setModerationNote] = useState<string>("");
-  const [isModerating, setIsModerating] = useState(false);
+  const [reports, setReports] = useState<ReportedContent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [viewReport, setViewReport] = useState<ReportedContent | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
-  const handleViewContent = (item: ReportedContent) => {
-    setSelectedItem(item);
-    setViewDialogOpen(true);
-  };
+  useEffect(() => {
+    fetchReports();
+  }, []);
 
-  const handleModerateContent = (item: ReportedContent) => {
-    setSelectedItem(item);
-    setActionDialogOpen(true);
-    setModerationAction("dismiss");
-    setModerationNote("");
-  };
-
-  const handleDeleteContent = (item: ReportedContent) => {
-    setSelectedItem(item);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmModeration = async () => {
-    if (!selectedItem) return;
-    
-    setIsModerating(true);
-
+  const fetchReports = async () => {
+    setLoading(true);
     try {
-      // Aqui iria a chamada para a API
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulando a requisição
-
-      // Remover o item da lista após a moderação
-      setReportedItems(reportedItems.filter(item => item.id !== selectedItem.id));
-      
-      // Feedback ao usuário
-      let actionMessage = "";
-      switch (moderationAction) {
-        case "dismiss":
-          actionMessage = "Denúncias ignoradas";
-          break;
-        case "warn":
-          actionMessage = "Aviso enviado ao autor";
-          break;
-        case "hide":
-          actionMessage = "Conteúdo oculto";
-          break;
-        case "ban":
-          actionMessage = "Usuário banido temporariamente";
-          break;
+      const response = await fetch("/api/forum/reports");
+      if (!response.ok) {
+        throw new Error("Falha ao buscar conteúdo reportado");
       }
-      
-      toast({
-        title: "Moderação concluída",
-        description: `${actionMessage} com sucesso.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro na moderação",
-        description: "Não foi possível processar esta ação. Tente novamente.",
-        variant: "destructive",
-      });
+      const data = await response.json();
+      setReports(data);
+      setError(null);
+    } catch (err) {
+      console.error("Erro ao buscar conteúdo reportado:", err);
+      setError("Não foi possível carregar o conteúdo reportado. Tente novamente mais tarde.");
     } finally {
-      setIsModerating(false);
-      setActionDialogOpen(false);
+      setLoading(false);
     }
   };
 
-  const confirmDelete = async () => {
-    if (!selectedItem) return;
-    
-    setIsModerating(true);
+  const handleViewReport = (report: ReportedContent) => {
+    setViewReport(report);
+    setIsViewDialogOpen(true);
+  };
 
+  const handleResolve = async (reportId: string) => {
     try {
-      // Aqui iria a chamada para a API
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulando a requisição
+      const response = await fetch(`/api/forum/reports/${reportId}/resolve`, {
+        method: "PATCH",
+      });
 
-      // Remover o item da lista
-      setReportedItems(reportedItems.filter(item => item.id !== selectedItem.id));
+      if (!response.ok) {
+        throw new Error("Falha ao resolver denúncia");
+      }
+
+      // Atualizar o estado localmente
+      setReports(prevReports => 
+        prevReports.map(report => 
+          report.id === reportId ? { ...report, status: 'resolved' } : report
+        )
+      );
       
       toast({
-        title: "Conteúdo removido",
-        description: "O conteúdo foi removido permanentemente.",
+        title: "Denúncia resolvida",
+        description: "A denúncia foi marcada como resolvida.",
       });
-    } catch (error) {
+    } catch (err) {
+      console.error("Erro ao resolver denúncia:", err);
       toast({
-        title: "Erro ao remover",
-        description: "Não foi possível remover este conteúdo. Tente novamente.",
+        title: "Erro",
+        description: "Falha ao resolver denúncia. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
-      setIsModerating(false);
-      setDeleteDialogOpen(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('pt-BR', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+  const handleDismiss = async (reportId: string) => {
+    try {
+      const response = await fetch(`/api/forum/reports/${reportId}/dismiss`, {
+        method: "PATCH",
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao dispensar denúncia");
+      }
+
+      // Atualizar o estado localmente
+      setReports(prevReports => 
+        prevReports.map(report => 
+          report.id === reportId ? { ...report, status: 'dismissed' } : report
+        )
+      );
+      
+      toast({
+        title: "Denúncia dispensada",
+        description: "A denúncia foi marcada como dispensada.",
+      });
+    } catch (err) {
+      console.error("Erro ao dispensar denúncia:", err);
+      toast({
+        title: "Erro",
+        description: "Falha ao dispensar denúncia. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (reportedItems.length === 0) {
+  // Formatar data para exibição
+  const formatDate = (dateString: string) => {
+    const options: Intl.DateTimeFormatOptions = { 
+      day: "2-digit", 
+      month: "2-digit", 
+      year: "numeric", 
+      hour: "2-digit", 
+      minute: "2-digit" 
+    };
+    return new Date(dateString).toLocaleDateString("pt-BR", options);
+  };
+
+  // Truncar texto longo
+  const truncateText = (text: string, maxLength: number = 100) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
+  };
+
+  if (loading) {
     return (
-      <div className="text-center py-10 space-y-4 border rounded-lg">
-        <Shield className="h-12 w-12 mx-auto text-muted-foreground" />
-        <h3 className="text-lg font-medium">Nenhum conteúdo reportado</h3>
-        <p className="text-muted-foreground">
-          Não há conteúdo reportado por usuários para ser revisado no momento.
-        </p>
+      <div className="text-center py-10">
+        <p className="text-gray-500 dark:text-gray-400">Carregando denúncias...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-10">
+        <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+        <p className="text-red-500">{error}</p>
+        <Button 
+          onClick={fetchReports} 
+          variant="outline" 
+          className="mt-4"
+        >
+          Tentar novamente
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-md bg-amber-50 p-4 border border-amber-200 mb-4">
-        <div className="flex items-start">
-          <Flag className="h-5 w-5 text-amber-500 mt-0.5 mr-3" />
-          <div>
-            <p className="text-sm font-medium text-amber-800">
-              Conteúdo Reportado Pendente
-            </p>
-            <p className="text-sm text-amber-700 mt-1">
-              Há {reportedItems.length} itens reportados aguardando revisão. A moderação rápida ajuda a manter a qualidade das discussões.
-            </p>
-          </div>
+    <div>
+      {reports.length === 0 ? (
+        <div className="text-center py-10 border rounded-md">
+          <p className="text-gray-500 dark:text-gray-400">
+            Nenhuma denúncia encontrada.
+          </p>
         </div>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[80px]">Tipo</TableHead>
-            <TableHead className="w-[250px]">Conteúdo</TableHead>
-            <TableHead>Autor</TableHead>
-            <TableHead>Motivos</TableHead>
-            <TableHead className="w-[120px]">Denúncias</TableHead>
-            <TableHead className="w-[180px]">Reportado em</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {reportedItems.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                <Badge variant={item.type === "topic" ? "outline" : "secondary"}>
-                  {item.type === "topic" ? "Tópico" : "Resposta"}
-                </Badge>
-              </TableCell>
-              <TableCell className="font-medium truncate max-w-[250px]">
-                {item.title}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    {item.authorAvatar && <AvatarImage src={item.authorAvatar} alt={item.authorName} />}
-                    <AvatarFallback>{item.authorName.substring(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <span>{item.authorName}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {item.reportReasons.map((reason, index) => (
-                    <span 
-                      key={index}
-                      className={`px-2 py-0.5 text-xs rounded-full ${getReasonColor(reason)}`}
-                    >
-                      {getReasonLabel(reason)}
-                    </span>
-                  ))}
-                </div>
-              </TableCell>
-              <TableCell className={`font-medium ${
-                item.reportCount >= 5 ? 'text-red-600' : 
-                item.reportCount >= 3 ? 'text-amber-600' : 'text-muted-foreground'
-              }`}>
-                {item.reportCount}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Calendar className="h-3.5 w-3.5 mr-1" />
-                  {formatDate(item.reportedAt)}
-                </div>
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleViewContent(item)}
-                    title="Visualizar conteúdo"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleModerateContent(item)}
-                    title="Moderar conteúdo"
-                  >
-                    <Shield className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleDeleteContent(item)}
-                    className="text-destructive hover:text-destructive"
-                    title="Remover conteúdo"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      {/* Diálogo para visualização do conteúdo */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-xl">
+      ) : (
+        <div className="border rounded-md overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Razão</TableHead>
+                <TableHead>Reportado por</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reports.map((report) => (
+                <TableRow key={report.id}>
+                  <TableCell>
+                    {report.type === 'topic' ? 'Tópico' : 'Resposta'}
+                  </TableCell>
+                  <TableCell className="max-w-xs">
+                    {truncateText(report.title)}
+                  </TableCell>
+                  <TableCell>{report.authorName}</TableCell>
+                  <TableCell>
+                    {report.status === 'pending' ? (
+                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pendente</Badge>
+                    ) : report.status === 'resolved' ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Resolvido</Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Dispensado</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {formatDate(report.createdAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleViewReport(report)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      
+                      {report.status === 'pending' && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-green-600"
+                            onClick={() => handleResolve(report.id)}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </Button>
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-gray-600"
+                            onClick={() => handleDismiss(report.id)}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      
+      {/* Dialog para visualizar a denúncia completa */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{selectedItem?.title}</DialogTitle>
-            <DialogDescription className="flex items-center gap-2">
-              Por <span className="font-medium">{selectedItem?.authorName}</span> 
-              <span className="text-muted-foreground text-xs">
-                {selectedItem && formatDate(selectedItem.createdAt)}
-              </span>
+            <DialogTitle>Detalhes da Denúncia</DialogTitle>
+            <DialogDescription>
+              Tipo: <strong>{viewReport?.type === 'topic' ? 'Tópico' : 'Resposta'}</strong>
             </DialogDescription>
           </DialogHeader>
-          <div className="border rounded-md p-4 bg-muted/50 whitespace-pre-wrap">
-            {selectedItem?.content}
-          </div>
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Motivos das denúncias:</h4>
-            <div className="flex flex-wrap gap-2">
-              {selectedItem?.reportReasons.map((reason, index) => (
-                <Badge key={index} variant="outline">
-                  {getReasonLabel(reason)}
-                </Badge>
-              ))}
+          
+          <div className="mt-4 space-y-4">
+            <div>
+              <h4 className="font-medium text-sm mb-1">Reportado por</h4>
+              <p>{viewReport?.authorName}</p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-sm mb-1">Data</h4>
+              <p>{viewReport && formatDate(viewReport.createdAt)}</p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-sm mb-1">Status</h4>
+              <p>
+                {viewReport?.status === 'pending' ? (
+                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pendente</Badge>
+                ) : viewReport?.status === 'resolved' ? (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Resolvido</Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Dispensado</Badge>
+                )}
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-sm mb-1">Motivo da denúncia</h4>
+              <div className="rounded-md border p-4 whitespace-pre-wrap">
+                {viewReport?.reportReasons.map(reason => getReasonLabel(reason)).join(', ')}
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-sm mb-1">
+                {viewReport?.type === 'topic' ? 'Tópico denunciado' : 'Resposta denunciada'}
+              </h4>
+              <div className="rounded-md border p-4 whitespace-pre-wrap">
+                {viewReport?.type === 'topic' ? (
+                  <div>
+                    <h5 className="font-bold">{viewReport?.title}</h5>
+                    <p className="mt-2">{viewReport?.content}</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Em resposta ao tópico: <strong>{viewReport?.title}</strong>
+                    </p>
+                    <p>{viewReport?.content}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+          
+          <DialogFooter className="flex justify-between items-center">
+            <div className="flex gap-2">
+              {viewReport?.status === 'pending' && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-green-600"
+                    onClick={() => {
+                      handleResolve(viewReport.id);
+                      setIsViewDialogOpen(false);
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Resolver
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-gray-600"
+                    onClick={() => {
+                      handleDismiss(viewReport.id);
+                      setIsViewDialogOpen(false);
+                    }}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Dispensar
+                  </Button>
+                </>
+              )}
+            </div>
+            
+            <Button 
+              variant="outline" 
+              onClick={() => setIsViewDialogOpen(false)}
+            >
               Fechar
             </Button>
-            <Button onClick={() => {
-              setViewDialogOpen(false);
-              if (selectedItem) handleModerateContent(selectedItem);
-            }}>
-              Moderar
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Diálogo para ações de moderação */}
-      <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Moderar Conteúdo</DialogTitle>
-            <DialogDescription>
-              Escolha a ação a ser tomada para este conteúdo reportado.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Ação de Moderação</label>
-              <Select 
-                defaultValue={moderationAction} 
-                onValueChange={setModerationAction}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma ação" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dismiss">Ignorar Denúncias</SelectItem>
-                  <SelectItem value="warn">Enviar Aviso ao Autor</SelectItem>
-                  <SelectItem value="hide">Ocultar Conteúdo</SelectItem>
-                  <SelectItem value="ban">Banir Usuário Temporariamente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nota de Moderação (opcional)</label>
-              <Textarea 
-                placeholder="Informe detalhes sobre esta decisão para referência futura..."
-                value={moderationNote}
-                onChange={(e) => setModerationNote(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setActionDialogOpen(false)} disabled={isModerating}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmModeration} disabled={isModerating}>
-              {isModerating ? "Processando..." : "Confirmar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Alerta para confirmação de remoção */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover Conteúdo</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover permanentemente este conteúdo? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isModerating}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={isModerating}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isModerating ? "Removendo..." : "Remover"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 } 

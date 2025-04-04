@@ -77,7 +77,7 @@ export default function AdminUsersPage() {
       const parsedUser = JSON.parse(userData);
       console.log("Dados do utilizador:", parsedUser);
       
-      if (parsedUser.role !== "admin") {
+      if (parsedUser.role?.toLowerCase() !== "admin") {
         setError("Acesso negado. Você não tem permissões de administrador.");
         console.error("Papel de utilizador:", parsedUser.role);
         setTimeout(() => {

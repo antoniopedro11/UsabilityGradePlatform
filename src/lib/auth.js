@@ -32,8 +32,11 @@ export function getUserFromCookie(request) {
  * @returns {import('next/server').ResponseCookie} Objeto de cookie para incluir na resposta
  */
 export function setUserCookie(userData) {
-  // Codificar dados do usuário como JSON
-  const encodedUserData = encodeURIComponent(JSON.stringify(userData));
+  // Garantir que userData é uma string JSON
+  const userDataStr = typeof userData === 'string' ? userData : JSON.stringify(userData);
+  
+  // Codificar dados do usuário
+  const encodedUserData = encodeURIComponent(userDataStr);
   
   // Definir cookie (válido por 24 horas)
   return {

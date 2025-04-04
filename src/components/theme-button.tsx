@@ -26,9 +26,9 @@ export function ThemeButton() {
       aria-label="Alternar tema"
     >
       {theme === "light" ? (
-        <Sun className="h-5 w-5 text-amber-500" />
+        <Sun className="h-5 w-5 text-orange-500" />
       ) : (
-        <Moon className="h-5 w-5 text-indigo-300" />
+        <Moon className="h-5 w-5 text-orange-300" />
       )}
     </Button>
   );
