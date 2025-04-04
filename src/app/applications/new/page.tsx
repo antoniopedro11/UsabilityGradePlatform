@@ -24,6 +24,8 @@ interface FormData {
   url: string;
 }
 
+console.log("Página de Criar Aplicação carregada");
+
 export default function NewApplicationPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
@@ -50,6 +52,8 @@ export default function NewApplicationPage() {
     setLoading(true);
     setError(null);
 
+    console.log("Enviando dados do formulário:", formData);
+
     try {
       // Validação básica
       if (!formData.name.trim()) {
@@ -67,18 +71,25 @@ export default function NewApplicationPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
+        credentials: "include"
       });
 
+      // Aguarde e processe a resposta apenas uma vez
+      const responseData = await response.json();
+      console.log("Resposta da API:", responseData);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao criar aplicação");
+        throw new Error(responseData.error || "Erro ao criar aplicação");
       }
 
       // Redirecionar para a lista de aplicações
       router.push("/applications");
       router.refresh(); // Atualizar a página para mostrar a nova aplicação
     } catch (err: any) {
-      console.error("Erro ao criar aplicação:", err);
+      console.log("Erro ao criar aplicação:", err);
+      if (err instanceof Error) {
+        console.log("Detalhes do erro:", err.message);
+      }
       setError(err.message || "Ocorreu um erro ao criar a aplicação");
     } finally {
       setLoading(false);
@@ -152,7 +163,9 @@ export default function NewApplicationPage() {
               <Label htmlFor="type">Tipo de Aplicação</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value) => handleChange({ target: { name: "type", value } } as React.ChangeEvent<HTMLSelectElement> })}
+                onValueChange={(value) => 
+                  handleChange({ target: { name: "type", value } } as React.ChangeEvent<HTMLSelectElement>)
+                }
               >
                 <SelectTrigger id="type">
                   <SelectValue placeholder="Selecione o tipo" />

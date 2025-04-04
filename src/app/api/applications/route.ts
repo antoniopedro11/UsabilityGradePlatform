@@ -1,15 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/auth";
+import { cookies } from "next/headers";
+
+// Função auxiliar para verificar autenticação via cookie
+async function getUserFromCookie() {
+  const cookieStore = cookies();
+  const userDataCookie = cookieStore.get("userData");
+  
+  if (!userDataCookie || !userDataCookie.value) {
+    return null;
+  }
+  
+  try {
+    return JSON.parse(decodeURIComponent(userDataCookie.value));
+  } catch (error) {
+    console.error("Erro ao parsear cookie:", error);
+    return null;
+  }
+}
 
 // GET: Obter todas as aplicações
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticação (opcional para visualização pública)
-    const session = await auth();
+    // Verificar autenticação via cookie
+    const userData = await getUserFromCookie();
     
-    // Se você quiser restringir apenas a usuários autenticados:
-    // if (!session) {
+    // Opcional: Descomentar para restringir acesso apenas a usuários logados
+    // if (!userData) {
     //   return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     // }
     
@@ -63,9 +80,9 @@ export async function GET(request: NextRequest) {
 // POST: Criar uma nova aplicação
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticação (obrigatório para criar)
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Verificar autenticação via cookie
+    const userData = await getUserFromCookie();
+    if (!userData?.id) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
     
@@ -88,7 +105,7 @@ export async function POST(request: NextRequest) {
         type: body.type,
         url: body.url,
         status: "Pendente", // Status inicial
-        submitterId: session.user.id,
+        submitterId: userData.id,
       },
     });
     

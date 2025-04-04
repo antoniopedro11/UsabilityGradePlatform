@@ -1,29 +1,12 @@
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 const bcrypt = require('bcrypt');
+const prisma = new PrismaClient();
 
 async function main() {
   try {
-    console.log('Conectando ao banco de dados Neon...');
+    const hashedPassword = await bcrypt.hash('123456', 10);
     
-    // Verificar se já existe um admin
-    const existingAdmin = await prisma.user.findFirst({
-      where: {
-        role: 'ADMIN'
-      }
-    });
-    
-    if (existingAdmin) {
-      console.log('Um administrador já existe:', existingAdmin.email);
-      return;
-    }
-    
-    // Hash da senha
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash('admin123', salt);
-    
-    // Criar administrador
-    const admin = await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         name: 'Administrador',
         email: 'admin@example.com',
@@ -32,15 +15,13 @@ async function main() {
       }
     });
     
-    console.log('Administrador criado com sucesso:');
-    console.log({
-      name: admin.name,
-      email: admin.email,
-      role: admin.role
-    });
-    
+    console.log('Usuário administrador criado com sucesso:');
+    console.log(`Nome: ${user.name}`);
+    console.log(`Email: ${user.email}`);
+    console.log(`Função: ${user.role}`);
+    console.log(`ID: ${user.id}`);
   } catch (error) {
-    console.error('Erro ao criar administrador:', error);
+    console.error('Erro ao criar usuário administrador:', error);
   } finally {
     await prisma.$disconnect();
   }

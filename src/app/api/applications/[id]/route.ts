@@ -1,50 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/auth";
 
-// Função para verificar se o usuário tem permissão para acessar a aplicação
-async function verifyPermission(applicationId: string) {
+// Função auxiliar para verificar autenticação via cookie
+async function getUserFromCookie() {
+  const cookieStore = cookies();
+  const userDataCookie = cookieStore.get("userData");
+  
+  if (!userDataCookie || !userDataCookie.value) {
+    return null;
+  }
+  
   try {
-    const cookieStore = await cookies();
-    const userDataCookie = cookieStore.get("userData");
-    
-    if (!userDataCookie || !userDataCookie.value) {
-      return { authorized: false, message: "Não autorizado" };
-    }
-    
-    const userData = JSON.parse(decodeURIComponent(userDataCookie.value));
-    if (!userData.id) {
-      return { authorized: false, message: "Usuário não identificado" };
-    }
-    
-    // Verificar se a aplicação existe
-    const application = await prisma.application.findUnique({
-      where: { id: applicationId },
-      select: { id: true, submitterId: true }
-    });
-    
-    if (!application) {
-      return { authorized: false, message: "Aplicação não encontrada" };
-    }
-    
-    // Verificar se o usuário é o criador da aplicação ou é um administrador/revisor
-    const isSubmitter = application.submitterId === userData.id;
-    const isAdmin = userData.role === "ADMIN";
-    
-    if (!isSubmitter && !isAdmin) {
-      return { authorized: false, message: "Você não tem permissão para acessar esta aplicação" };
-    }
-    
-    return { 
-      authorized: true, 
-      userId: userData.id,
-      isAdmin,
-      isSubmitter
-    };
+    return JSON.parse(decodeURIComponent(userDataCookie.value));
   } catch (error) {
-    console.error("Erro ao verificar permissão:", error);
-    return { authorized: false, message: "Erro ao verificar permissão" };
+    console.error("Erro ao parsear cookie:", error);
+    return null;
   }
 }
 
@@ -56,11 +27,11 @@ export async function GET(
   try {
     const id = params.id;
     
-    // Verificar autenticação (opcional para visualização pública)
-    const session = await auth();
+    // Verificar autenticação via cookie (opcional para visualização)
+    const userData = await getUserFromCookie();
     
     // Buscar a aplicação pelo ID
-    const application = await prisma.application.findUnique({
+    const application = await db.application.findUnique({
       where: { id },
       include: {
         submitter: {
@@ -89,7 +60,7 @@ export async function GET(
     
     // Verificar permissão (se quiser restringir acesso)
     // Se não for o criador ou um administrador, negar acesso
-    // if (session?.user?.id !== application.submitterId && session?.user?.role !== "admin") {
+    // if (userData?.id !== application.submitterId && userData?.role !== "ADMIN") {
     //   return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
     // }
     
@@ -111,14 +82,14 @@ export async function PATCH(
   try {
     const id = params.id;
     
-    // Verificar autenticação
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Verificar autenticação via cookie
+    const userData = await getUserFromCookie();
+    if (!userData?.id) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
     
     // Buscar a aplicação para verificar permissão
-    const existingApplication = await prisma.application.findUnique({
+    const existingApplication = await db.application.findUnique({
       where: { id },
       select: { submitterId: true },
     });
@@ -131,7 +102,7 @@ export async function PATCH(
     }
     
     // Verificar se o usuário é o criador da aplicação ou um administrador
-    if (session.user.id !== existingApplication.submitterId && session.user.role !== "admin") {
+    if (userData.id !== existingApplication.submitterId && userData.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Você não tem permissão para editar esta aplicação" },
         { status: 403 }
@@ -142,7 +113,7 @@ export async function PATCH(
     const body = await request.json();
     
     // Atualizar a aplicação
-    const updatedApplication = await prisma.application.update({
+    const updatedApplication = await db.application.update({
       where: { id },
       data: {
         name: body.name,
@@ -151,7 +122,7 @@ export async function PATCH(
         url: body.url,
         status: body.status,
         // Apenas permitir atualizar o revisor se for administrador
-        ...(session.user.role === "admin" && body.reviewerId
+        ...(userData.role === "ADMIN" && body.reviewerId
           ? { reviewerId: body.reviewerId }
           : {}),
       },
@@ -175,14 +146,14 @@ export async function DELETE(
   try {
     const id = params.id;
     
-    // Verificar autenticação
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Verificar autenticação via cookie
+    const userData = await getUserFromCookie();
+    if (!userData?.id) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
     
     // Buscar a aplicação para verificar permissão
-    const existingApplication = await prisma.application.findUnique({
+    const existingApplication = await db.application.findUnique({
       where: { id },
       select: { submitterId: true },
     });
@@ -195,7 +166,7 @@ export async function DELETE(
     }
     
     // Verificar se o usuário é o criador da aplicação ou um administrador
-    if (session.user.id !== existingApplication.submitterId && session.user.role !== "admin") {
+    if (userData.id !== existingApplication.submitterId && userData.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Você não tem permissão para excluir esta aplicação" },
         { status: 403 }
@@ -203,7 +174,7 @@ export async function DELETE(
     }
     
     // Excluir a aplicação
-    await prisma.application.delete({
+    await db.application.delete({
       where: { id },
     });
     

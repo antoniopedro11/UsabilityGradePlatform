@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const { email, password } = body;
     
     console.log(`API: Login - Tentativa para o e-mail: ${email}`);
+    console.log("API: Login - Corpo da requisição completo:", body);
     
     if (!email || !password) {
       console.log("API: Login - E-mail ou senha não fornecidos");
@@ -40,17 +41,38 @@ export async function POST(request: NextRequest) {
       console.log(`API: Login - Usuário encontrado no banco de dados: ${dbUser.email}, role: ${dbUser.role}`);
       
       // Verificar senha
-      const isPasswordValid = await bcrypt.compare(password, dbUser.password || "");
+      console.log("API: Login - Tentando verificar senha");
+      console.log("API: Login - Hash armazenado:", dbUser.password);
+      console.log("API: Login - Senha fornecida (primeiros caracteres):", password.slice(0, 3) + "...");
       
-      if (!isPasswordValid) {
-        console.log("API: Login - Senha inválida para usuário do banco de dados");
+      if (!dbUser.password) {
+        console.log("API: Login - Hash da senha vazio ou inválido no banco de dados");
         return NextResponse.json(
-          { error: "E-mail ou senha incorretos" },
+          { error: "Problema com a conta de usuário. Contate o administrador." },
           { status: 401 }
         );
       }
       
-      console.log("API: Login - Senha válida para usuário do banco de dados");
+      // Comparar senha
+      try {
+        const isPasswordValid = await bcrypt.compare(password, dbUser.password);
+        
+        if (!isPasswordValid) {
+          console.log("API: Login - Comparação de senha falhou");
+          return NextResponse.json(
+            { error: "E-mail ou senha incorretos" },
+            { status: 401 }
+          );
+        }
+        
+        console.log("API: Login - Comparação de senha bem-sucedida");
+      } catch (error) {
+        console.error("API: Login - Erro durante comparação de senha:", error);
+        return NextResponse.json(
+          { error: "Erro ao verificar credenciais" },
+          { status: 500 }
+        );
+      }
       
       user = {
         id: dbUser.id,
@@ -86,14 +108,29 @@ export async function POST(request: NextRequest) {
     
     console.log("API: Login - Login bem-sucedido, retornando dados do usuário:", userResponse);
     
-    // Retornar resposta bem-sucedida
-    return NextResponse.json(
+    // Criar resposta com cookie
+    const response = NextResponse.json(
       { 
         message: "Login bem-sucedido", 
         user: userResponse
       },
       { status: 200 }
     );
+    
+    // Definir cookie com dados do usuário
+    const encodedUserData = encodeURIComponent(JSON.stringify(userResponse));
+    response.cookies.set({
+      name: 'userData',
+      value: encodedUserData,
+      httpOnly: true,
+      path: '/',
+      maxAge: 24 * 60 * 60, // 24 horas em segundos
+      sameSite: 'strict'
+    });
+    
+    console.log("API: Login - Cookie definido com sucesso: userData");
+    
+    return response;
   } catch (error) {
     console.error("API: Login - Erro geral:", error);
     return NextResponse.json(

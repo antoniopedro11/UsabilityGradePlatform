@@ -12,6 +12,8 @@ import { ThemeButton } from "@/components/theme-button";
 // Controle de tentativas de redirecionamento
 const LOGIN_SESSION_KEY = "usability_login_attempt";
 
+console.log("DEPURAÇÃO: Página de login carregada. Tente fazer login com admin@example.com / admin123");
+
 export default function LoginPage() {
   console.log("LoginPage inicializado"); // Depuração
   
@@ -116,6 +118,13 @@ export default function LoginPage() {
       const expiryTime = new Date().getTime() + 24 * 60 * 60 * 1000;
       sessionStorage.setItem("sessionExpiry", expiryTime.toString());
   
+      console.log("Login bem-sucedido, dados do usuário:", data.user);
+      console.log("Redirecionando para /applications");
+
+      // Verificar como os dados do usuário estão sendo armazenados no cookie
+      // Adicionar após configurar o cookie
+      console.log("Cookie definido com userData:", JSON.stringify(data.user));
+
       console.log("Redirecionando para o dashboard");
       goToDashboard();
     } catch (error) {
@@ -251,6 +260,10 @@ export default function LoginPage() {
                   </Link>
                 </p>
               </div>
+
+              <p className="text-center text-green-600 font-bold mt-4">
+                DEPURAÇÃO: Utilize admin@example.com / admin123
+              </p>
             </div>
           </div>
         </div>

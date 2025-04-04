@@ -119,71 +119,58 @@ async function main() {
     }
 
     // Criar aplicações de exemplo
-    const applicacoesSeed = [
-      {
-        name: 'Meu E-commerce',
-        description: 'Uma loja online completa com carrinho de compras, pagamentos e área de cliente.',
-        url: 'https://meu-ecommerce.example.com',
-        type: 'WEB',
-        status: 'PENDING',
-        submitterId: userId,
-        screenshots: 'https://via.placeholder.com/800x600?text=E-commerce+Homepage,https://via.placeholder.com/800x600?text=E-commerce+Product+Page'
-      },
-      {
-        name: 'Aplicativo de Finanças',
-        description: 'Um aplicativo mobile para controle financeiro pessoal, com gráficos e relatórios.',
-        url: 'https://finance-app.example.com',
-        type: 'MOBILE',
-        status: 'IN_REVIEW',
-        submitterId: userId,
-        assignedReviewer: adminId,
-        screenshots: 'https://via.placeholder.com/400x800?text=Finance+App+Dashboard'
-      },
-      {
-        name: 'Dashboard Administrativo',
-        description: 'Painel de controle para administradores com métricas de negócio e visualização de dados.',
-        url: 'https://admin-dashboard.example.com',
-        type: 'WEB',
-        status: 'APPROVED',
-        submitterId: adminId,
-        assignedReviewer: adminId,
-        feedback: 'Excelente trabalho! O dashboard tem uma organização clara e as funcionalidades são fáceis de encontrar. Recomendamos melhorar apenas o feedback visual ao realizar ações críticas.',
-        screenshots: 'https://via.placeholder.com/1200x800?text=Admin+Dashboard,https://via.placeholder.com/1200x800?text=Data+Visualization'
-      },
-      {
-        name: 'Aplicativo de Reservas',
-        description: 'Sistema para agendamento de reservas em restaurantes e eventos.',
-        url: 'https://booking-app.example.com',
-        type: 'WEB',
-        status: 'REJECTED',
-        submitterId: userId,
-        assignedReviewer: adminId,
-        feedback: 'O fluxo de reserva é confuso e há muitas etapas desnecessárias. Recomendamos simplificar o processo e melhorar as mensagens de erro. Por favor, reenvie após as correções.',
-        screenshots: 'https://via.placeholder.com/800x600?text=Booking+Form'
-      }
-    ];
+    const totalApplications = await prisma.application.count();
+    
+    if (totalApplications === 0) {
+      console.log('Criando aplicações de exemplo...');
 
-    console.log('Criando aplicações de exemplo...');
-    for (const app of applicacoesSeed) {
-      // Verificar se a aplicação já existe pelo nome
-      const existingApp = await prisma.application.findFirst({
-        where: { name: app.name },
-      });
+      const applications = [
+        {
+          name: 'Portal de Notícias',
+          description: 'Um portal de notícias para divulgação de conteúdo jornalístico, com foco em usabilidade para todos os públicos.',
+          type: 'WEB',
+          url: 'https://exemplo-noticias.com',
+          status: 'Pendente',
+          submitterId: userId
+        },
+        {
+          name: 'Aplicativo de Finanças',
+          description: 'Aplicativo mobile para controle financeiro pessoal com gráficos e relatórios detalhados.',
+          type: 'MOBILE',
+          url: 'https://financas-app.com',
+          status: 'Em Análise',
+          submitterId: userId,
+          reviewerId: adminId
+        },
+        {
+          name: 'Sistema de Gestão Escolar',
+          description: 'Sistema web para gestão completa de escolas, incluindo notas, frequência e comunicação com pais.',
+          type: 'WEB',
+          url: 'https://escola-sistema.com',
+          status: 'Aprovado',
+          submitterId: userId,
+          reviewerId: adminId
+        },
+        {
+          name: 'Plataforma de E-commerce',
+          description: 'Loja virtual com funcionalidades avançadas de carrinho, pagamento e gestão de estoque.',
+          type: 'WEB',
+          url: 'https://loja-virtual.com',
+          status: 'Rejeitado',
+          submitterId: userId,
+          reviewerId: adminId
+        }
+      ];
 
-      if (!existingApp) {
+      for (const app of applications) {
         await prisma.application.create({
-          data: {
-            ...app,
-            createdAt: app.status === 'APPROVED' || app.status === 'REJECTED' 
-              ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 dias atrás para aprovadas/rejeitadas
-              : new Date(),
-            updatedAt: new Date()
-          },
+          data: app
         });
-        console.log(`Aplicação '${app.name}' criada com sucesso!`);
-      } else {
-        console.log(`Aplicação '${app.name}' já existe, pulando criação`);
       }
+
+      console.log(`${applications.length} aplicações criadas com sucesso.`);
+    } else {
+      console.log(`Já existem ${totalApplications} aplicações no banco de dados.`);
     }
 
     console.log('Seeding concluído com sucesso!');

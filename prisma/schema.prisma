@@ -28,8 +28,6 @@ model User {
   createdTasks   Task[]          @relation("TaskCreator")
   assignedTasks  Task[]          @relation("TaskAssigned")
   templates      Template[]
-  submissions    Application[]   @relation("UserSubmissions")
-  reviewings     Application[]   @relation("ApplicationReviewer")
   submittedApplications Application[] @relation("SubmittedApplications")
   reviewedApplications  Application[] @relation("ReviewedApplications")
 }
