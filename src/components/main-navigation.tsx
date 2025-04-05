@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FaHome, FaUser, FaChartBar, FaClipboardList, FaCog, FaUsers, FaSignOutAlt, FaProjectDiagram, FaTasks, FaBook, FaComments, FaLock } from "react-icons/fa";
 import { cn } from "@/lib/utils";
+import { ThemeButton } from "@/components/theme-button";
+import { LanguageToggle } from "@/components/language-toggle";
 
 export function MainNavigation({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -220,6 +222,12 @@ export function MainNavigation({ className }: { className?: string }) {
                 </div>
               </div>
             )}
+
+            {/* Botões de tema e idioma */}
+            <div className="flex items-center gap-2 ml-4">
+              <LanguageToggle />
+              <ThemeButton />
+            </div>
 
             {/* Usuário dropdown em desktop */}
             <div className="relative group ml-4">

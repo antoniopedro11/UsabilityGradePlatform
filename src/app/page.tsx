@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { ThemeButton } from "@/components/theme-button";
+import { LanguageToggle } from "@/components/language-toggle";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, BarChart3, Users, PenTool, Layers, Puzzle, Star, Award, Clock, Shield } from "lucide-react";
 
@@ -32,6 +33,7 @@ export default function Home() {
               <Logo size="md" variant="white" showTagline={false} />
             </div>
             <div className="flex space-x-4 items-center">
+              <LanguageToggle />
               <ThemeButton />
               <Button asChild variant="default" size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
                 <Link href="/register?new=true">Registar</Link>

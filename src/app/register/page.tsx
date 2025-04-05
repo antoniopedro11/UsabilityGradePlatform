@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 import { ThemeButton } from "@/components/theme-button";
+import { LanguageToggle } from "@/components/language-toggle";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -127,7 +128,8 @@ export default function RegisterPage() {
               <Logo size="md" showTagline={false} />
             </div>
           </Link>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <LanguageToggle />
             <ThemeButton />
             <Link href="/login">
               <Button variant="outline" size="sm" className="text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600">

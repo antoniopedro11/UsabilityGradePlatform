@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 import { ThemeButton } from "@/components/theme-button";
+import { LanguageToggle } from "@/components/language-toggle";
 
 // Controle de tentativas de redirecionamento
 const LOGIN_SESSION_KEY = "usability_login_attempt";
@@ -160,7 +161,8 @@ export default function LoginPage() {
               <Logo size="md" showTagline={false} />
             </div>
           </Link>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2">
+            <LanguageToggle />
             <ThemeButton />
           </div>
         </div>
